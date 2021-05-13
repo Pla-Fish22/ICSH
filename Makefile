@@ -12,5 +12,3 @@ icsh: icsh.c
 
 clean:
 	$(RM) icsh
-run:
-	./icsh

@@ -9,7 +9,7 @@ int commands(char **command , char **dest){ //taking in commands
     if(!strcmp(*command , "echo\n")){
       return 1;
     }
-    if(!strcmp(*command , "echo ")){
+    if(!strcmp(*command , "echo ") || !strcmp(*command , "echo") ){
         printf(*dest);
         return 1;
     }
@@ -51,6 +51,11 @@ void main(int argc, char* argv[])
     char *dest = malloc(sizeof(char) * LEN_INPUT);
     char *prevCommand = malloc(sizeof(char) * LEN_INPUT);
     char *prevDest = malloc(sizeof(char) * LEN_INPUT);
+    printf("\nexe name=%s", argv[0]);
+    for (int i=1; i< argc; i++) {
+      printf("\narg%d=%s", i, argv[i]);
+    }
+
     printf("Starting IC shell\n");
   do{
       printf("icsh $ ");
