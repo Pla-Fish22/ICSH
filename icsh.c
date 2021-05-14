@@ -6,10 +6,12 @@
 int LEN_INPUT = 1024;
 
 int commands(char **command , char **dest){ //taking in commands 
+    
     if(!strcmp(*command , "echo\n")){
+      //printf("%d\n" , *dest == NULL);
       return 1;
     }
-    if(!strcmp(*command , "echo ") || !strcmp(*command , "echo") ){
+    if(!strcmp(*command , "echo ") || !strcmp(*command , "echo")){
         printf(*dest);
         return 1;
     }
@@ -26,6 +28,7 @@ int commands(char **command , char **dest){ //taking in commands
 
 void  getLine(char **command , char **dest){ //reading input 
     char *input = malloc(sizeof(char) * LEN_INPUT);
+    strcpy(*command , "0");
     fgets(input , LEN_INPUT , stdin);
     if((input[0] != '\n')){
       if(strchr(input , ' ') == NULL){
@@ -47,17 +50,17 @@ void  getLine(char **command , char **dest){ //reading input
 void main(int argc, char* argv[])
 {
     int status = 1; //life cycle checker
-    char *command = malloc(sizeof(char) * LEN_INPUT);
-    char *dest = malloc(sizeof(char) * LEN_INPUT);
     char *prevCommand = malloc(sizeof(char) * LEN_INPUT);
     char *prevDest = malloc(sizeof(char) * LEN_INPUT);
-    printf("\nexe name=%s", argv[0]);
-    for (int i=1; i< argc; i++) {
-      printf("\narg%d=%s", i, argv[i]);
-    }
+    // printf("\nexe name=%s", argv[0]);
+    // for (int i=1; i< argc; i++) {
+    //   printf("\narg%d=%s", i, argv[i]);
+    // }
 
     printf("Starting IC shell\n");
   do{
+      char *command = malloc(sizeof(char) * LEN_INPUT);
+      char *dest = malloc(sizeof(char) * LEN_INPUT);
       printf("icsh $ ");
       getLine(&command , &dest);
       if(!strcmp(command , "!!\n")){ //check if command is !! if TRUE do the previous command instead
@@ -67,10 +70,10 @@ void main(int argc, char* argv[])
         status = commands(&command , &dest);
         strcpy(prevCommand , command); strcpy(prevDest ,dest);
       }
+      free(command);
+      free(dest);
   } while(status);
-    free(command);
     free(prevCommand);
-    free(dest);
     free(prevDest);
     exit(EXIT_SUCCESS);
 }

@@ -12,3 +12,5 @@ icsh: icsh.c
 
 clean:
 	$(RM) icsh
+code: 
+	code icsh.c
