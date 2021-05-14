@@ -3,33 +3,25 @@
 #include <string.h>
 #include <ctype.h>
 
+int modeCheck; //since script mode and shell mode will work differently
 int LEN_INPUT = 1024;
 
 int commands(char **command , char **dest){ //taking in commands 
-    
     if(!strcmp(*command , "echo\n")){
-      //printf("%d\n" , *dest == NULL);
       return 1;
     }
     if(!strcmp(*command , "echo ") || !strcmp(*command , "echo")){
         printf(*dest);
         return 1;
     }
-    if(!strcmp(*command , "exit\n")){
-        printf("bye!\n");
-        return 0;
-    }
     if(!strcmp(*command , "exit ")){
-        //unsigned char* temp = (unsigned int) atoi(*dest)>>8;
-        if(atoi(*dest)>>8 != NULL){
-          printf("%i\n" , atoi(*dest)>>8);
-          return 0;
+        if(modeCheck == 1){
+          return (u_int8_t)(atoi(*dest));
         }
         else{
-          printf("%i\n" , (unsigned short int)atoi(*dest));
-          return 0;
+          printf("exit code: %i\n" , (u_int8_t)(atoi(*dest)) );
+          return  0;
         }
-
     }
     if(!strcmp(*command , "0")){
       return 1;
@@ -59,17 +51,13 @@ void  getLine(char **command , char **dest){ //reading input
     free(input);
 }
 
-void main(int argc, char* argv[])
-{
+void shellMode(){
+
     int status = 1; //life cycle checker
     char *prevCommand = malloc(sizeof(char) * LEN_INPUT);
     char *prevDest = malloc(sizeof(char) * LEN_INPUT);
-    // printf("\nexe name=%s", argv[0]);
-    // for (int i=1; i< argc; i++) {
-    //   printf("\narg%d=%s", i, argv[i]);
-    // }
-
     printf("Starting IC shell\n");
+    modeCheck = 0;
   do{
       char *command = malloc(sizeof(char) * LEN_INPUT);
       char *dest = malloc(sizeof(char) * LEN_INPUT);
@@ -84,10 +72,23 @@ void main(int argc, char* argv[])
       }
       free(command);
       free(dest);
-  } while(status);
+  } while(status == 1);
     free(prevCommand);
     free(prevDest);
     exit(EXIT_SUCCESS);
+}
+
+void scriptMode(){
+  printf("script mode");
+}
+
+void main(int argc, char* argv[])
+{
+    if(argc > 1){
+      char *dir = malloc(sizeof(char) * LEN_INPUT);
+      scriptMode();
+    }
+    else{shellMode();}
 }
 
 
