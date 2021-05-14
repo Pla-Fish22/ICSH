@@ -15,9 +15,21 @@ int commands(char **command , char **dest){ //taking in commands
         printf(*dest);
         return 1;
     }
-    if(!strcmp(*command , "exit") || !strcmp(*command , "exit\n")){
-        printf("bye!");
+    if(!strcmp(*command , "exit\n")){
+        printf("bye!\n");
         return 0;
+    }
+    if(!strcmp(*command , "exit ")){
+        //unsigned char* temp = (unsigned int) atoi(*dest)>>8;
+        if(atoi(*dest)>>8 != NULL){
+          printf("%i\n" , atoi(*dest)>>8);
+          return 0;
+        }
+        else{
+          printf("%i\n" , (unsigned short int)atoi(*dest));
+          return 0;
+        }
+
     }
     if(!strcmp(*command , "0")){
       return 1;
