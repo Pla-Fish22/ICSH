@@ -4,47 +4,48 @@
 #include <ctype.h>
 
 int modeCheck; //since script mode and shell mode will work differently
-int LEN_INPUT = 1024;
+#define LEN_INPUT 9999
 
-int commands(char **inputLine){ //taking in commands 
-    char cmd[1024];
-    char dest[1024];
-    strcpy(dest , "\n");
-    if(!strchr(*inputLine , " ")){
-      char *token = strtok(*inputLine , " ");
-      strcpy(cmd , token);
-      token = strtok(NULL , " ");
-      strcpy(dest , token);
-      token = strtok(NULL , " ");
+int commands(char **inputLine , char **prevInputLine){ //taking in commands 
+    char temp[LEN_INPUT];
+    strcpy(temp , *inputLine);
+    if(temp[strlen(temp) - 1] == '\n'){temp[strlen(temp) - 1 ] = '\0';}
+    if(!strcmp(temp , "echo\n") || !strcmp(temp , "echo ")){printf("\n"); return 0;}
+    char *token = strtok(temp , " ");
+    token = strtok(NULL , " ");
+    if(!strcmp(temp , "echo")){
       while(token != NULL){
-        strcat(dest , " ");
-        strcat(dest , token);
+        printf("%s " ,token);
         token = strtok(NULL , " ");
       }
+      printf("\n");
+      return 0;
     }
-    if(!strcmp(cmd , "echo")){
-      if(!strcmp(dest , "\n") || dest == NULL){printf(dest);return 1;} //false
-      printf(dest); 
-      return 1;
+    if(!strcmp(temp , "exit")){
+     printf("bye\n");
+     return (u_int8_t)atoi(token);
     }
-
-    if(!strcmp(cmd , "exit")){
-      printf("exit code: %i\n" , (u_int8_t)atoi(dest));
-      return (u_int8_t)atoi(dest);
+    if(!strcmp(temp , "!! ") || !strcmp(temp , "!!\n") || !strcmp(temp , "!!")){
+     return commands(&prevInputLine, &inputLine);
     }
     else{
       printf("bad command\n");
-      return 1;
+      return 0;
     }
+
+
 }
 
 void  getLine(char **inputLine){ //reading input 
-    fgets(*inputLine , LEN_INPUT , stdin);
+    char temp[LEN_INPUT];
+    fgets(temp , LEN_INPUT, stdin);
+    strcpy(*inputLine , temp);
 }
 
 void shellMode(){
-    int status = 1; //life cycle checker
+    int status = 0; //life cycle checker
     char *inputLine = malloc(sizeof(char) * LEN_INPUT);
+    char *prevInputLine = malloc(sizeof(char) * LEN_INPUT);
     printf("Starting IC shell\n");
     modeCheck = 1;
   do{
@@ -53,9 +54,15 @@ void shellMode(){
       if(!strcmp(inputLine , "\n")){
         continue;
       }
-      else{ status = commands(&inputLine);}
+      else{
+        status = commands(&inputLine , prevInputLine);
+        strcpy(prevInputLine , inputLine);
+      }
       
-  } while(status == 1);
+  } while(!status);
+  free(inputLine);
+  free(prevInputLine);
+  exit(status);
     
 }
 
