@@ -6,76 +6,57 @@
 int modeCheck; //since script mode and shell mode will work differently
 int LEN_INPUT = 1024;
 
-int commands(char **command , char **dest){ //taking in commands 
-    if(!strcmp(*command , "echo\n")){
+int commands(char **inputLine){ //taking in commands 
+    char cmd[1024];
+    char dest[1024];
+    strcpy(dest , "\n");
+    if(!strchr(*inputLine , " ")){
+      char *token = strtok(*inputLine , " ");
+      strcpy(cmd , token);
+      token = strtok(NULL , " ");
+      strcpy(dest , token);
+      token = strtok(NULL , " ");
+      while(token != NULL){
+        strcat(dest , " ");
+        strcat(dest , token);
+        token = strtok(NULL , " ");
+      }
+    }
+    if(!strcmp(cmd , "echo")){
+      if(!strcmp(dest , "\n") || dest == NULL){printf(dest);return 1;} //false
+      printf(dest); 
       return 1;
     }
-    if(!strcmp(*command , "echo ") || !strcmp(*command , "echo")){
-        printf(*dest);
-        return 1;
-    }
-    if(!strcmp(*command , "exit ")){
-        if(modeCheck == 1){
-          return (u_int8_t)(atoi(*dest));
-        }
-        else{
-          printf("exit code: %i\n" , (u_int8_t)(atoi(*dest)) );
-          return  0;
-        }
-    }
-    if(!strcmp(*command , "0")){
-      return 1;
-    }
-    printf("COMMAND NOT FOUND\n");
-    return 1;
-}
 
-void  getLine(char **command , char **dest){ //reading input 
-    char *input = malloc(sizeof(char) * LEN_INPUT);
-    strcpy(*command , "0");
-    fgets(input , LEN_INPUT , stdin);
-    if((input[0] != '\n')){
-      if(strchr(input , ' ') == NULL){
-        strcpy(*command , input);
-      }
-      else{
-        char *destTemp = strchr(input , ' ')+1;
-        strcpy(*dest , destTemp);
-        size_t lenOfCommand = destTemp - input;
-        strncpy(*command , input , lenOfCommand);
-      }
+    if(!strcmp(cmd , "exit")){
+      printf("exit code: %i\n" , (u_int8_t)atoi(dest));
+      return (u_int8_t)atoi(dest);
     }
     else{
-      strcpy(*command , "0");
+      printf("bad command\n");
+      return 1;
     }
-    free(input);
+}
+
+void  getLine(char **inputLine){ //reading input 
+    fgets(*inputLine , LEN_INPUT , stdin);
 }
 
 void shellMode(){
-
     int status = 1; //life cycle checker
-    char *prevCommand = malloc(sizeof(char) * LEN_INPUT);
-    char *prevDest = malloc(sizeof(char) * LEN_INPUT);
+    char *inputLine = malloc(sizeof(char) * LEN_INPUT);
     printf("Starting IC shell\n");
-    modeCheck = 0;
+    modeCheck = 1;
   do{
-      char *command = malloc(sizeof(char) * LEN_INPUT);
-      char *dest = malloc(sizeof(char) * LEN_INPUT);
       printf("icsh $ ");
-      getLine(&command , &dest);
-      if(!strcmp(command , "!!\n")){ //check if command is !! if TRUE do the previous command instead
-        status = commands(&prevCommand , &prevDest);
+      getLine(&inputLine);
+      if(!strcmp(inputLine , "\n")){
+        continue;
       }
-      else{
-        status = commands(&command , &dest);
-        strcpy(prevCommand , command); strcpy(prevDest ,dest);
-      }
-      free(command);
-      free(dest);
+      else{ status = commands(&inputLine);}
+      
   } while(status == 1);
-    free(prevCommand);
-    free(prevDest);
-    exit(EXIT_SUCCESS);
+    
 }
 
 void scriptMode(){
