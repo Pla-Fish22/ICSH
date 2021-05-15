@@ -3,7 +3,6 @@
 #include <string.h>
 #include <ctype.h>
 
-int modeCheck; //since script mode and shell mode will work differently
 #define LEN_INPUT 9999
 
 int commands(char **inputLine , char **prevInputLine){ //taking in commands 
@@ -47,7 +46,6 @@ void shellMode(){
     char *inputLine = malloc(sizeof(char) * LEN_INPUT);
     char *prevInputLine = malloc(sizeof(char) * LEN_INPUT);
     printf("Starting IC shell\n");
-    modeCheck = 1;
   do{
       printf("icsh $ ");
       getLine(&inputLine);
@@ -66,15 +64,19 @@ void shellMode(){
     
 }
 
-void scriptMode(){
-  printf("script mode");
+void scriptMode(char **dir){
+  FILE *fileName;
+  fileName = fopen(*dir , "r");
+  if(fileName == NULL){
+    printf("Error opening file.\n");
+    exit(EXIT_FAILURE);
+  }
 }
 
 void main(int argc, char* argv[])
 {
     if(argc > 1){
-      char *dir = malloc(sizeof(char) * LEN_INPUT);
-      scriptMode();
+      scriptMode(&argv[1]);
     }
     else{shellMode();}
 }
