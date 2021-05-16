@@ -22,7 +22,6 @@ int commands(char **inputLine , char **prevInputLine){ //taking in commands
     }
     if(!strcmp(temp , "exit")){
      printf("bye\n");
-     printf("%i" , atoi(token));
      return (u_int8_t)atoi(token);
     }
     if(!strcmp(temp , "!! ") || !strcmp(temp , "!!\n") || !strcmp(temp , "!!")){
@@ -67,6 +66,7 @@ void shellMode(){
 
 void scriptMode(char **dir){
   FILE *fileName;
+  if(!strstr(*dir , ".sh")){printf("Not .sh file.\n");exit(EXIT_FAILURE);}
   fileName = fopen(*dir , "r");
   char *line = malloc(sizeof(char) * LEN_INPUT);
   char *prevLine = malloc(sizeof(char) * LEN_INPUT);
@@ -76,8 +76,8 @@ void scriptMode(char **dir){
     exit(EXIT_FAILURE);
   }
   while(fgets(line , LEN_INPUT , fileName) != NULL){
-      commands(&line , prevLine);
-      status = strcpy(prevLine , line);
+      status = commands(&line , prevLine);
+      strcpy(prevLine , line);
   }
   exit(status);
 }
