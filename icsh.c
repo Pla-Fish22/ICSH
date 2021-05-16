@@ -22,6 +22,7 @@ int commands(char **inputLine , char **prevInputLine){ //taking in commands
     }
     if(!strcmp(temp , "exit")){
      printf("bye\n");
+     printf("%i" , atoi(token));
      return (u_int8_t)atoi(token);
     }
     if(!strcmp(temp , "!! ") || !strcmp(temp , "!!\n") || !strcmp(temp , "!!")){
@@ -67,10 +68,18 @@ void shellMode(){
 void scriptMode(char **dir){
   FILE *fileName;
   fileName = fopen(*dir , "r");
+  char *line = malloc(sizeof(char) * LEN_INPUT);
+  char *prevLine = malloc(sizeof(char) * LEN_INPUT);
+  int status;
   if(fileName == NULL){
     printf("Error opening file.\n");
     exit(EXIT_FAILURE);
   }
+  while(fgets(line , LEN_INPUT , fileName) != NULL){
+      commands(&line , prevLine);
+      status = strcpy(prevLine , line);
+  }
+  exit(status);
 }
 
 void main(int argc, char* argv[])
@@ -78,7 +87,7 @@ void main(int argc, char* argv[])
     if(argc > 1){
       scriptMode(&argv[1]);
     }
-    else{shellMode();}
+    shellMode();
 }
 
 
