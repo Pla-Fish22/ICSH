@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <ctype.h>
 
 #define LEN_INPUT 9999
@@ -28,8 +30,22 @@ int commands(char **inputLine , char **prevInputLine){ //taking in commands
      return commands(&prevInputLine, &inputLine);
     }
     else{
-      printf("bad command\n");
-      return 0;
+      pid_t pid = fork();
+      if(pid < 0){
+        printf("Error.\n");
+        return 0;
+      }
+      if(pid == 0){
+        printf("hello");
+        execl("/bin/ls", temp , token, (char *)0);
+        return 5;
+      }
+      else{
+        int status;
+        wait(&status);
+        printf("bad command.\n");
+        exit(0);
+      }
     }
 
 
