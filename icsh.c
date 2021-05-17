@@ -6,6 +6,7 @@
 #include <ctype.h>
 
 #define LEN_INPUT 9999
+int quitStatus = 1;
 
 int commands(char **inputLine , char **prevInputLine){ //taking in commands 
     char temp[LEN_INPUT];
@@ -23,6 +24,7 @@ int commands(char **inputLine , char **prevInputLine){ //taking in commands
       return 0;
     }
     if(!strcmp(temp , "exit")){
+     quitStatus = 0;
      printf("bye\n");
      return (u_int8_t)atoi(token);
     }
@@ -30,25 +32,30 @@ int commands(char **inputLine , char **prevInputLine){ //taking in commands
      return commands(&prevInputLine, &inputLine);
     }
     else{
+      char arg[LEN_INPUT];
+      strcpy(arg , "/bin/");
+      strcat(arg ,temp);
       pid_t pid = fork();
-      if(pid < 0){
-        printf("Error.\n");
+      if(pid < 0){printf("Error.\n");exit(EXIT_FAILURE);}
+      if(pid == 0){
+        if(execl(arg, temp , token, (char *)0) < 0){
+        printf("bad command.\n");
         return 0;
       }
-      if(pid == 0){
-        printf("hello");
-        execl("/bin/ls", temp , token, (char *)0);
-        return 5;
+        else{
+          execl(arg, inputLine,(char *)0);
+          return 5;
+        }
       }
       else{
         int status;
         wait(&status);
-        printf("bad command.\n");
-        exit(0);
+        if(WIFEXITED(status)){
+          return 0;
+        }
+        
       }
     }
-
-
 }
 
 void  getLine(char **inputLine){ //reading input 
@@ -73,7 +80,7 @@ void shellMode(){
         strcpy(prevInputLine , inputLine);
       }
       
-  } while(!status);
+  } while(quitStatus);
   free(inputLine);
   free(prevInputLine);
   exit(status);
@@ -92,8 +99,10 @@ void scriptMode(char **dir){
     exit(EXIT_FAILURE);
   }
   while(fgets(line , LEN_INPUT , fileName) != NULL){
+    if(quitStatus == 1){
       status = commands(&line , prevLine);
       strcpy(prevLine , line);
+    }
   }
   exit(status);
 }
