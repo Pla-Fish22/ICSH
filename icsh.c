@@ -40,12 +40,11 @@ int commands(char **inputLine , char **prevInputLine){ //taking in commands
       if(pid == 0){
         if(execl(arg, temp , token, (char *)0) < 0){
         printf("bad command.\n");
-        return 0;
       }
         else{
           execl(arg, inputLine,(char *)0);
-          return 5;
         }
+        exit(0);
       }
       else{
         int status;
