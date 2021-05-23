@@ -30,6 +30,7 @@ int commands(char **inputLine , char **prevInputLine){ //taking in commands
 
     if(!strcmp(temp , "echo")){
       while(token != NULL){
+        if(!strcmp(token , "$?")){printf("%d" , childExitStatus); break;}
         printf("%s " ,token);
         token = strtok(NULL , " ");
       }
@@ -77,8 +78,8 @@ int commands(char **inputLine , char **prevInputLine){ //taking in commands
         waitpid(child, &status, WUNTRACED);
         tcsetpgrp(0, getpid());
         if (WIFEXITED(status)){childExitStatus = WEXITSTATUS(status);}
-        else if (WIFSIGNALED(status)){childExitStatus = WTERMSIG(status);}
-        else if (WIFSTOPPED(status)){ printf("yeet"); while(1);}            
+        else if (WIFSIGNALED(status)){childExitStatus = WTERMSIG(status); printf("%d\n" , childExitStatus);}
+        else if (WIFSTOPPED(status)){while(1);}            
 
       }
     }
