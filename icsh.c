@@ -4,17 +4,30 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <signal.h>
 
 #define LEN_INPUT 9999
 int quitStatus = 1;
+int childExitStatus;
 
 int commands(char **inputLine , char **prevInputLine){ //taking in commands 
+
+    struct sigaction sigtstp_default;    
+    struct sigaction sigint_default;    
+    struct sigaction sa;
+
+    sa.sa_handler = SIG_IGN;
+
     char temp[LEN_INPUT];
     strcpy(temp , *inputLine);
+
     if(temp[strlen(temp) - 1] == '\n'){temp[strlen(temp) - 1 ] = '\0';}
+
     if(!strcmp(temp , "echo\n") || !strcmp(temp , "echo ")){printf("\n"); return 0;}
+
     char *token = strtok(temp , " ");
     token = strtok(NULL , " ");
+
     if(!strcmp(temp , "echo")){
       while(token != NULL){
         printf("%s " ,token);
@@ -35,24 +48,38 @@ int commands(char **inputLine , char **prevInputLine){ //taking in commands
       char arg[LEN_INPUT];
       strcpy(arg , "/bin/");
       strcat(arg ,temp);
-      pid_t pid = fork();
-      if(pid < 0){printf("Error.\n");exit(EXIT_FAILURE);}
-      if(pid == 0){
-        if(execl(arg, temp , token, (char *)0) < 0){
+      pid_t child = fork();
+
+      sigaction(SIGTSTP, &sa, NULL);
+      sigaction(SIGTTOU, &sa, NULL);   
+
+      if(child < 0){printf("Error.\n");exit(EXIT_FAILURE);} // no child
+
+      if(child == 0){ //child process.
+        sa.sa_handler = SIG_DFL;
+        sigaction(SIGTSTP , &sa , NULL);
+        child = getpid();
+        setpgid(child, child);
+        tcsetpgrp(0, child);
+
+        if(execl(arg, temp , token, (char *)0) < 0){ //not in valid bash command.
         printf("bad command.\n");
       }
         else{
           execl(arg, inputLine,(char *)0);
         }
-        exit(0);
+        perror("exec");
       }
       else{
+        setpgid(child, child);
+        tcsetpgrp(0, child);
         int status;
-        wait(&status);
-        if(WIFEXITED(status)){
-          return 0;
-        }
-        
+        waitpid(child, &status, WUNTRACED);
+        tcsetpgrp(0, getpid());
+        if (WIFEXITED(status)){childExitStatus = WEXITSTATUS(status);}
+        else if (WIFSIGNALED(status)){childExitStatus = WTERMSIG(status);}
+        else if (WIFSTOPPED(status)){ printf("yeet"); while(1);}            
+
       }
     }
 }
@@ -103,7 +130,7 @@ void scriptMode(char **dir){
       strcpy(prevLine , line);
     }
   }
-  exit(status);
+  if(quitStatus == 0){exit(status);}
 }
 
 void main(int argc, char* argv[])
