@@ -12,12 +12,6 @@ int childExitStatus;
 
 int commands(char **inputLine , char **prevInputLine){ //taking in commands 
 
-    struct sigaction sigtstp_default;    
-    struct sigaction sigint_default;    
-    struct sigaction sa;
-
-    sa.sa_handler = SIG_IGN;
-
     char temp[LEN_INPUT];
     strcpy(temp , *inputLine);
 
@@ -37,51 +31,40 @@ int commands(char **inputLine , char **prevInputLine){ //taking in commands
       printf("\n");
       return 0;
     }
+
     if(!strcmp(temp , "exit")){
      quitStatus = 0;
      printf("bye\n");
      return (u_int8_t)atoi(token);
     }
+
     if(!strcmp(temp , "!! ") || !strcmp(temp , "!!\n") || !strcmp(temp , "!!")){
      return commands(&prevInputLine, &inputLine);
     }
-    else{
-      char arg[LEN_INPUT];
+     char arg[LEN_INPUT];
       strcpy(arg , "/bin/");
       strcat(arg ,temp);
-      pid_t child = fork();
+      pid_t pid = fork();
 
-      sigaction(SIGTSTP, &sa, NULL);
-      sigaction(SIGTTOU, &sa, NULL);   
-
-      if(child < 0){printf("Error.\n");exit(EXIT_FAILURE);} // no child
-
-      if(child == 0){ //child process.
-        sa.sa_handler = SIG_DFL;
-        sigaction(SIGTSTP , &sa , NULL);
-        child = getpid();
-        setpgid(child, child);
-        tcsetpgrp(0, child);
-
-        if(execl(arg, temp , token, (char *)0) < 0){ //not in valid bash command.
+      if(pid < 0){printf("Error.\n");exit(EXIT_FAILURE);}
+      if(pid == 0){
+        struct sigaction sigint, sigtstp;
+        sigint.sa_handler  = SIG_DFL;
+        sigtstp.sa_handler  = SIG_DFL;
+        if(execl(arg, temp , token, (char *)0) < 0){
         printf("bad command.\n");
       }
         else{
           execl(arg, inputLine,(char *)0);
         }
-        perror("exec");
+        exit(0);
       }
       else{
-        setpgid(child, child);
-        tcsetpgrp(0, child);
         int status;
-        waitpid(child, &status, WUNTRACED);
-        tcsetpgrp(0, getpid());
-        if (WIFEXITED(status)){childExitStatus = WEXITSTATUS(status);}
-        else if (WIFSIGNALED(status)){childExitStatus = WTERMSIG(status); printf("%d\n" , childExitStatus);}
-        else if (WIFSTOPPED(status)){while(1);}            
-
-      }
+        wait(&status);
+        if(WIFEXITED(status)){
+          return 0;
+        }
     }
 }
 
@@ -92,9 +75,15 @@ void  getLine(char **inputLine){ //reading input
 }
 
 void shellMode(){
+    struct sigaction sigint, sigtstp, sigttou;
+
+    sigint.sa_handler  = commands;
+    sigtstp.sa_handler  = commands;
+    sigttou.sa_handler = SIG_IGN;
+
     int status = 0; //life cycle checker
     char *inputLine = malloc(sizeof(char) * LEN_INPUT);
-    char *prevInputLine = malloc(sizeof(char) * LEN_INPUT);
+    char *prevInputLine = malloc(sizeof(char) * LEN_INPUT); 
     printf("Starting IC shell\n");
   do{
       printf("icsh $ ");
@@ -106,6 +95,8 @@ void shellMode(){
         status = commands(&inputLine , prevInputLine);
         strcpy(prevInputLine , inputLine);
       }
+
+
       
   } while(quitStatus);
   free(inputLine);
@@ -131,7 +122,7 @@ void scriptMode(char **dir){
       strcpy(prevLine , line);
     }
   }
-  if(quitStatus == 0){exit(status);}
+  if(quitStatus == 0){ free(line); free(prevLine); exit(status);}
 }
 
 void main(int argc, char* argv[])
