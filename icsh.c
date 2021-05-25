@@ -8,55 +8,41 @@
 
 #define LEN_INPUT 9999
 int quitStatus = 1;
+int childExitCode;
 
-void handler(int sig){
 
-      if(sig == SIGTSTP){
-        printf("0");
-      }
-}
 
-int buildInCommand(int sig , char parse[] , char token[]){
-
-    // if(sig == SIGTSTP){
-    //     printf("0\n");
-    //   }
-
+int buildInCommand(char parse[] , char token[]){
       char arg[LEN_INPUT];
       strcpy(arg , "/bin/");
       strcat(arg ,parse);
       pid_t pid = fork();
 
-      struct sigaction signal;
+      struct sigaction sig;
+
 
       if(pid < 0){printf("Error.\n");exit(EXIT_FAILURE);}
 
       if(pid == 0){
-          signal.sa_handler = SIG_DFL;
-          sigaction(SIGINT, &signal, NULL);
-          sigaction(SIGTSTP, &signal, NULL);
+          sig.sa_handler = SIG_DFL;
+          sigaction(SIGINT, &sig, NULL);
+          sigaction(SIGTSTP, &sig, NULL);
           pid = getpid();
           setpgid(pid, pid);
           tcsetpgrp(0, pid);
-
-          if(execl(arg,  parse, token, NULL) < 0){
-            printf("bad command.\n");
-            exit(0);
+          execl(arg, parse, token, NULL);
+          printf("bad command\n");
+          exit(0);
           }
-          else{
-            execl(arg, parse, token, NULL);
-            exit(0);
-          }
-      }
       else{
         int childStat;
         setpgid(pid, pid);
         tcsetpgrp(0, pid);
         waitpid(pid , &childStat, WUNTRACED);
         tcsetpgrp(0, getpid());
-        if(sig == SIGTSTP){
-          printf("%d" , pid);
-      }
+        if(!WIFEXITED(childStat)){printf("\n");}
+        if(WIFSIGNALED(childStat)){childExitCode = WTERMSIG(childStat) + 128;}
+        if(WIFSTOPPED(childStat)){childExitCode = WSTOPSIG(childStat) + 128;}
         return 0;
       }
     }
@@ -64,6 +50,7 @@ int buildInCommand(int sig , char parse[] , char token[]){
 
 
 int commands(char **inputLine , char **prevInputLine){ //taking in commands 
+
     char temp[LEN_INPUT];
     strcpy(temp , *inputLine);
 
@@ -76,6 +63,7 @@ int commands(char **inputLine , char **prevInputLine){ //taking in commands
 
     if(!strcmp(temp , "echo")){
       while(token != NULL){
+        if(!strcmp(token , "$?")){printf("%d" , childExitCode); return 0;}
         printf("%s " ,token);
         token = strtok(NULL , " ");
       }
@@ -93,7 +81,7 @@ int commands(char **inputLine , char **prevInputLine){ //taking in commands
      return commands(&prevInputLine, &inputLine);
     }
     else{
-      return buildInCommand(NULL, temp, token);
+      return buildInCommand(temp, token);
     }
         
 }
@@ -106,24 +94,19 @@ void  getLine(char **inputLine){ //reading input
 
 void shellMode(){
 
-    struct sigaction sigint , sigtstp, sigttou;
+    struct sigaction sig;
 
-    sigint.sa_handler = buildInCommand;
-    sigtstp.sa_handler = buildInCommand;
-    sigttou.sa_handler = SIG_IGN;
-
-    sigaction(SIGINT, &sigint, NULL); 
-    sigaction(SIGTSTP, &sigtstp, NULL); 
-    sigaction(SIGTTOU, &sigttou, NULL); 
-
+    sig.sa_handler = SIG_IGN; //go to handler to check which pid is running on back ground
+    
+    sigaction(SIGINT, &sig, NULL); 
+    sigaction(SIGTSTP, &sig, NULL); 
+    sigaction(SIGTTOU, &sig, NULL);
+    
     int status = 0; //life cycle checker
     char *inputLine = malloc(sizeof(char) * LEN_INPUT);
     char *prevInputLine = malloc(sizeof(char) * LEN_INPUT); 
     printf("Starting IC shell\n");
   do{
-      sigaction(SIGINT, &sigint, NULL); 
-      sigaction(SIGTSTP, &sigtstp, NULL); 
-      sigaction(SIGTTOU, &sigttou, NULL); 
       printf("icsh $ ");
       getLine(&inputLine);
       if(!strcmp(inputLine , "\n")){
@@ -133,8 +116,6 @@ void shellMode(){
         status = commands(&inputLine , prevInputLine);
         strcpy(prevInputLine , inputLine);
       }
-
-
       
   } while(quitStatus);
   free(inputLine);
