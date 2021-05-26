@@ -11,12 +11,12 @@ int quitStatus = 1;
 int childExitCode;
 
 
-
-int buildInCommand(char parse[] , char token[]){
-      char arg[LEN_INPUT];
-      strcpy(arg , "/bin/");
-      strcat(arg ,parse);
+int buildInCommand(char parse[]){
+      char *token = strtok(parse , " ");
+      //strcat(arg ,parse);
       pid_t pid = fork();
+      // token = strtok(NULL , " ");
+      // printf("1%s1",token);
 
       struct sigaction sig;
 
@@ -30,7 +30,7 @@ int buildInCommand(char parse[] , char token[]){
           pid = getpid();
           setpgid(pid, pid);
           tcsetpgrp(0, pid);
-          execl(arg, parse, token, NULL);
+          execlp(parse, parse, NULL);
           printf("bad command\n");
           exit(0);
           }
@@ -52,16 +52,17 @@ int buildInCommand(char parse[] , char token[]){
 int commands(char **inputLine , char **prevInputLine){ //taking in commands 
 
     char temp[LEN_INPUT];
+    char temp2[LEN_INPUT];
     strcpy(temp , *inputLine);
+    strcpy(temp2 , *inputLine);
 
     if(temp[strlen(temp) - 1] == '\n'){temp[strlen(temp) - 1 ] = '\0';}
 
     if(!strcmp(temp , "echo\n") || !strcmp(temp , "echo ")){printf("\n"); return 0;}
 
     char *token = strtok(temp , " ");
-    token = strtok(NULL , " ");
-
     if(!strcmp(temp , "echo")){
+      token = strtok(NULL , " ");
       while(token != NULL){
         if(!strcmp(token , "$?")){printf("%d" , childExitCode); return 0;}
         printf("%s " ,token);
@@ -81,7 +82,7 @@ int commands(char **inputLine , char **prevInputLine){ //taking in commands
      return commands(&prevInputLine, &inputLine);
     }
     else{
-      return buildInCommand(temp, token);
+      return buildInCommand(temp2);
     }
         
 }
