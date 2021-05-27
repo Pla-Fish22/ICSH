@@ -32,10 +32,10 @@ int buildInCommand(char parse[]){
       }
 
       char toFile[LEN_INPUT];//extracting file name
-      int dupCheck = 0; //check if we have to duplicate/redirect 
+      int dupCheck = 0; //check if we have to duplicate/redirect // 1 for > 2 for <
       int bgCheck = 0;
 
-      for(idx = 0; idx < pointers-1; idx++){ //finding dup | bg checker 
+      for(idx = 0; idx < pointers; idx++){ //finding dup | bg checker 
         if(arg[idx] == NULL ){break;}
           if(strchr(arg[idx] , '>')){
             arg[idx] = NULL;
@@ -43,16 +43,27 @@ int buildInCommand(char parse[]){
             toFile[strlen(toFile) - 1] = '\0';
             arg[idx+1] = NULL;
             dupCheck = 1;
-            continue;
+            break;
+          }
+
+          if(strchr(arg[idx] , '<')){
+            arg[idx] = NULL;
+            strcpy(toFile , arg[idx+1]);
+            printf(toFile);
+            toFile[strlen(toFile) - 1] = '\0';
+            arg[idx+1] = NULL;
+            dupCheck = 2;
+            break;
           }
 
         if (strchr(arg[idx] , '&')){
             arg[idx] = NULL;
             arg[idx+1] = NULL;
             bgCheck = 1;
-            continue;
+            break;
           }
       }
+
 
       free(token);
 
@@ -61,7 +72,6 @@ int buildInCommand(char parse[]){
       pid_t pid = fork();
 
       struct sigaction sig;
-
 
       if(pid < 0){printf("Error.\n");exit(EXIT_FAILURE);}
 
@@ -78,11 +88,17 @@ int buildInCommand(char parse[]){
             setpgid(pid, pid);
             tcsetpgrp(0, pid);
           }
-          if(dupCheck){
+          if(dupCheck == 1){
             int file = open(toFile, O_WRONLY | O_CREAT | O_TRUNC , 0777);
             int from = dup2(file , STDOUT_FILENO);
             close(file);
           }
+          if(dupCheck == 2){
+            int file = open(toFile, O_RDONLY);
+            int from = dup2(file, STDIN_FILENO);
+            close(file);
+          }
+
           execlp(parse, parse, arg[0], arg[1], arg[2], NULL);
           printf("bad command\n");
           exit(0);
