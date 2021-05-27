@@ -1,0 +1,1 @@
+Finished milestone 5 with some problems related to milestone #3 which is why I modified my input taking for external commands. I also fixed something on #1 and #2 during my progress on #3. These fixed are either on the missing conditions and/or bugs rarely occured which I found later on the project. Sorry for the inconvenient ajarn.

@@ -35,6 +35,7 @@ int buildInCommand(char parse[]){
       int dupCheck = 0;
 
       for(i = 0; i < m-1; i++){
+        if(arg[i] == NULL ){break;}
           if(strchr(arg[i] , '>')){
             arg[i] = NULL;
             strcpy(toFile , arg[i+1]);
