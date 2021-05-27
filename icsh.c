@@ -12,11 +12,23 @@ int childExitCode;
 
 
 int buildInCommand(char parse[]){
+      char filename[LEN_INPUT];
+      strcpy(filename , parse);
+      char *arg[LEN_INPUT];
       char *token = strtok(parse , " ");
-      //strcat(arg ,parse);
+      int i = 0;
+      int m;
+      while(token != NULL){
+        token = strtok(NULL , " ");
+        if(token != NULL){arg[i] = token;}
+        i++;
+        m = i;
+      }
+      
+
+
+      if(parse[strlen(filename)-1] == '\n'){parse[strlen(filename)-1] = '\0';}
       pid_t pid = fork();
-      // token = strtok(NULL , " ");
-      // printf("1%s1",token);
 
       struct sigaction sig;
 
@@ -30,7 +42,7 @@ int buildInCommand(char parse[]){
           pid = getpid();
           setpgid(pid, pid);
           tcsetpgrp(0, pid);
-          execlp(parse, parse, NULL);
+          execlp(parse, parse, arg[0], arg[1], arg[2], NULL);
           printf("bad command\n");
           exit(0);
           }
