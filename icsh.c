@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <signal.h>
+#include <sys/types.h>
+#include <fcntl.h>
 
 #define LEN_INPUT 9999
 int quitStatus = 1;
@@ -18,6 +20,8 @@ int buildInCommand(char parse[]){
       char *token = strtok(parse , " ");
       int i = 0;
       int m;
+
+
       token = strtok(NULL , " ");
       while(token != NULL){
         if(!strcmp(token , "\n")){arg[i] = NULL;}
@@ -26,6 +30,20 @@ int buildInCommand(char parse[]){
         i++;
         m = i;
       }
+
+      char toFile[LEN_INPUT];
+      int dupCheck = 0;
+
+      for(i = 0; i < m-1; i++){
+          if(strchr(arg[i] , '>')){
+            arg[i] = NULL;
+            strcpy(toFile , arg[i+1]);
+            toFile[strlen(toFile) - 1] = '\0';
+            arg[i+1] = NULL;
+            dupCheck = 1;
+          }
+      }
+
 
       if(parse[strlen(filename)-1] == '\n'){parse[strlen(filename)-1] = '\0';}
       pid_t pid = fork();
@@ -42,10 +60,15 @@ int buildInCommand(char parse[]){
           pid = getpid();
           setpgid(pid, pid);
           tcsetpgrp(0, pid);
+          if(dupCheck){
+            int file = open(toFile, O_WRONLY | O_CREAT, 0777);
+            int from = dup2(file , STDOUT_FILENO);
+          }
           execlp(parse, parse, arg[0], arg[1], arg[2], NULL);
           printf("bad command\n");
           exit(0);
           }
+
       else{
         int childStat;
         setpgid(pid, pid);
@@ -55,6 +78,7 @@ int buildInCommand(char parse[]){
         if(!WIFEXITED(childStat)){printf("\n");}
         if(WIFSIGNALED(childStat)){childExitCode = WTERMSIG(childStat) + 128;}
         if(WIFSTOPPED(childStat)){childExitCode = WSTOPSIG(childStat) + 128;}
+        arg[0] = NULL; arg[1] = NULL; arg[2] = NULL;
         return 0;
       }
     }
