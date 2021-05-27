@@ -18,35 +18,46 @@ int buildInCommand(char parse[]){
       strcpy(filename , parse);
       char *arg[LEN_INPUT];
       char *token = strtok(parse , " ");
-      int i = 0;
-      int m;
+      int idx = 0;
+      int pointers;
 
 
       token = strtok(NULL , " ");
       while(token != NULL){
-        if(!strcmp(token , "\n")){arg[i] = NULL;}
-        else{arg[i] = token;}
+        if(!strcmp(token , "\n")){arg[idx] = NULL;}
+        else{arg[idx] = token;}
         token = strtok(NULL , " ");
-        i++;
-        m = i;
+        idx++;
+        pointers = idx;
       }
 
-      char toFile[LEN_INPUT];
-      int dupCheck = 0;
+      char toFile[LEN_INPUT];//extracting file name
+      int dupCheck = 0; //check if we have to duplicate/redirect 
+      int bgCheck = 0;
 
-      for(i = 0; i < m-1; i++){
-        if(arg[i] == NULL ){break;}
-          if(strchr(arg[i] , '>')){
-            arg[i] = NULL;
-            strcpy(toFile , arg[i+1]);
+      for(idx = 0; idx < pointers-1; idx++){ //finding dup | bg checker 
+        if(arg[idx] == NULL ){break;}
+          if(strchr(arg[idx] , '>')){
+            arg[idx] = NULL;
+            strcpy(toFile , arg[idx+1]);
             toFile[strlen(toFile) - 1] = '\0';
-            arg[i+1] = NULL;
+            arg[idx+1] = NULL;
             dupCheck = 1;
+            continue;
+          }
+
+        if (strchr(arg[idx] , '&')){
+            arg[idx] = NULL;
+            arg[idx+1] = NULL;
+            bgCheck = 1;
+            continue;
           }
       }
 
+      free(token);
 
       if(parse[strlen(filename)-1] == '\n'){parse[strlen(filename)-1] = '\0';}
+
       pid_t pid = fork();
 
       struct sigaction sig;
@@ -59,11 +70,18 @@ int buildInCommand(char parse[]){
           sigaction(SIGINT, &sig, NULL);
           sigaction(SIGTSTP, &sig, NULL);
           pid = getpid();
-          setpgid(pid, pid);
-          tcsetpgrp(0, pid);
+          if(bgCheck){
+            setpgid(0, 0);
+            tcsetpgrp(0, pid);
+          }
+          else{
+            setpgid(pid, pid);
+            tcsetpgrp(0, pid);
+          }
           if(dupCheck){
-            int file = open(toFile, O_WRONLY | O_CREAT, 0777);
+            int file = open(toFile, O_WRONLY | O_CREAT | O_TRUNC , 0777);
             int from = dup2(file , STDOUT_FILENO);
+            close(file);
           }
           execlp(parse, parse, arg[0], arg[1], arg[2], NULL);
           printf("bad command\n");
@@ -72,9 +90,17 @@ int buildInCommand(char parse[]){
 
       else{
         int childStat;
-        setpgid(pid, pid);
-        tcsetpgrp(0, pid);
-        waitpid(pid , &childStat, WUNTRACED);
+        if(bgCheck){
+            setpgid(0, 0);
+            tcsetpgrp(0, pid);
+            waitpid(pid , &childStat, WNOHANG);
+          }
+          else{
+            setpgid(pid, pid);
+            tcsetpgrp(0, pid);
+             waitpid(pid , &childStat, WUNTRACED);
+          }
+
         tcsetpgrp(0, getpid());
         if(!WIFEXITED(childStat)){printf("\n");}
         if(WIFSIGNALED(childStat)){childExitCode = WTERMSIG(childStat) + 128;}
