@@ -18,14 +18,14 @@ int buildInCommand(char parse[]){
       char *token = strtok(parse , " ");
       int i = 0;
       int m;
+      token = strtok(NULL , " ");
       while(token != NULL){
+        if(!strcmp(token , "\n")){arg[i] = NULL;}
+        else{arg[i] = token;}
         token = strtok(NULL , " ");
-        if(token != NULL){arg[i] = token;}
         i++;
         m = i;
       }
-      
-
 
       if(parse[strlen(filename)-1] == '\n'){parse[strlen(filename)-1] = '\0';}
       pid_t pid = fork();
