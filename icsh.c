@@ -8,18 +8,21 @@
 #include <sys/types.h>
 #include <fcntl.h>
 
-#define LEN_INPUT 9999
+#define LEN_INPUT 1024
 int quitStatus = 1;
 int childExitCode;
+pid_t jobs[9999];
+
 
 
 int buildInCommand(char parse[]){
       char filename[LEN_INPUT];
       strcpy(filename , parse);
-      char *arg[LEN_INPUT];
+      char *arg[1024];
       char *token = strtok(parse , " ");
       int idx = 0;
       int pointers;
+      arg[0] = NULL; arg[1] = NULL; arg[2] = NULL;
 
 
       token = strtok(NULL , " ");
@@ -35,7 +38,7 @@ int buildInCommand(char parse[]){
       int dupCheck = 0; //check if we have to duplicate/redirect // 1 for > 2 for <
       int bgCheck = 0;
 
-      for(idx = 0; idx < pointers; idx++){ //finding dup | bg checker 
+      for(idx = 0; idx < pointers; idx++){  //finding dup | bg checker 
         if(arg[idx] == NULL ){break;}
           if(strchr(arg[idx] , '>')){
             arg[idx] = NULL;
@@ -64,7 +67,6 @@ int buildInCommand(char parse[]){
           }
       }
 
-
       free(token);
 
       if(parse[strlen(filename)-1] == '\n'){parse[strlen(filename)-1] = '\0';}
@@ -80,21 +82,19 @@ int buildInCommand(char parse[]){
           sigaction(SIGINT, &sig, NULL);
           sigaction(SIGTSTP, &sig, NULL);
           pid = getpid();
-          if(bgCheck){
-            setpgid(0, 0);
-            tcsetpgrp(0, pid);
-          }
-          else{
-            setpgid(pid, pid);
-            tcsetpgrp(0, pid);
-          }
+          setpgid(0, 0);
+          //setpgid(pid, pid);
+          tcsetpgrp(0, pid);
+        
           if(dupCheck == 1){
             int file = open(toFile, O_WRONLY | O_CREAT | O_TRUNC , 0777);
+            if(file < 0){perror("failed to find file"); exit(EXIT_FAILURE);}
             int from = dup2(file , STDOUT_FILENO);
             close(file);
           }
           if(dupCheck == 2){
             int file = open(toFile, O_RDONLY);
+            if(file < 0){perror("failed to find file"); exit(EXIT_FAILURE);}
             int from = dup2(file, STDIN_FILENO);
             close(file);
           }
@@ -106,17 +106,14 @@ int buildInCommand(char parse[]){
 
       else{
         int childStat;
+        setpgid(pid, pid);
+        tcsetpgrp(0, pid);
         if(bgCheck){
-            setpgid(0, 0);
-            tcsetpgrp(0, pid);
             waitpid(pid , &childStat, WNOHANG);
           }
           else{
-            setpgid(pid, pid);
-            tcsetpgrp(0, pid);
              waitpid(pid , &childStat, WUNTRACED);
           }
-
         tcsetpgrp(0, getpid());
         if(!WIFEXITED(childStat)){printf("\n");}
         if(WIFSIGNALED(childStat)){childExitCode = WTERMSIG(childStat) + 128;}
@@ -143,7 +140,7 @@ int commands(char **inputLine , char **prevInputLine){ //taking in commands
     if(!strcmp(temp , "echo")){
       token = strtok(NULL , " ");
       while(token != NULL){
-        if(!strcmp(token , "$?")){printf("%d" , childExitCode); return 0;}
+        if(!strcmp(token , "$?")){printf("%d\n" , childExitCode); return 0;}
         printf("%s " ,token);
         token = strtok(NULL , " ");
       }
