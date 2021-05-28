@@ -12,7 +12,19 @@
 int quitStatus = 1;
 int childExitCode;
 pid_t jobs[9999];
+int ccount;
+int jobID;
 
+int childHandler(int sig){
+  int child_status;    
+  pid_t pid;    
+   while ((pid = waitpid(-1, &child_status, WNOHANG)) > 0)
+    {
+        ccount--;
+        printf("Received signal %d from process %d\n",
+               sig, pid);
+    }
+}
 
 
 int buildInCommand(char parse[]){
@@ -52,7 +64,6 @@ int buildInCommand(char parse[]){
           if(strchr(arg[idx] , '<')){
             arg[idx] = NULL;
             strcpy(toFile , arg[idx+1]);
-            printf(toFile);
             toFile[strlen(toFile) - 1] = '\0';
             arg[idx+1] = NULL;
             dupCheck = 2;
@@ -75,6 +86,8 @@ int buildInCommand(char parse[]){
 
       struct sigaction sig;
 
+
+
       if(pid < 0){printf("Error.\n");exit(EXIT_FAILURE);}
 
       if(pid == 0){
@@ -82,10 +95,10 @@ int buildInCommand(char parse[]){
           sigaction(SIGINT, &sig, NULL);
           sigaction(SIGTSTP, &sig, NULL);
           pid = getpid();
-          setpgid(0, 0);
-          //setpgid(pid, pid);
-          tcsetpgrp(0, pid);
-        
+          //setpgid(0, 0);
+          setpgid(pid, pid);
+          //tcsetpgrp(0, pid);
+          jobID = ccount;
           if(dupCheck == 1){
             int file = open(toFile, O_WRONLY | O_CREAT | O_TRUNC , 0777);
             if(file < 0){perror("failed to find file"); exit(EXIT_FAILURE);}
@@ -110,9 +123,11 @@ int buildInCommand(char parse[]){
         tcsetpgrp(0, pid);
         if(bgCheck){
             waitpid(pid , &childStat, WNOHANG);
+            ccount++;
           }
           else{
              waitpid(pid , &childStat, WUNTRACED);
+             ccount++;
           }
         tcsetpgrp(0, getpid());
         if(!WIFEXITED(childStat)){printf("\n");}
@@ -171,10 +186,14 @@ void  getLine(char **inputLine){ //reading input
 
 void shellMode(){
 
-    struct sigaction sig;
+    struct sigaction sig, sigchld;
 
     sig.sa_handler = SIG_IGN; //go to handler to check which pid is running on back ground
     
+    sigchld.sa_handler = childHandler;
+
+    sigaction(SIGCHLD , &sigchld, NULL);
+
     sigaction(SIGINT, &sig, NULL); 
     sigaction(SIGTSTP, &sig, NULL); 
     sigaction(SIGTTOU, &sig, NULL);
