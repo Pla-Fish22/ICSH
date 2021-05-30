@@ -36,32 +36,34 @@ int findFreeJobID(){
 
 int toBackground(int jobID){
   int childStat;
-  for(int idx = 0; idx < jobCount; idx++){
-    if(jobList[idx].job_id == jobID){
-      kill(jobList[idx].pid , SIGCONT);
-      return 0;
-    }
-  }
+  int idx = 0;
+  while(jobList[idx].job_id != jobID){idx++;}
+  tcsetpgrp(0 , jobList[idx].pid);
+  kill(jobList[idx].pid , SIGCONT);
+  jobList[idx].state = "Running";
+  waitpid(jobList[idx].pid  , &childStat, WNOHANG);
+  tcsetpgrp(0 , getpid());
+  return 0;
 
 }
 
 
 int toForeground(int jobID){
   int childStat;
-  for(int idx = 0; idx < jobCount; idx++){
-    if(jobList[idx].job_id == jobID){
-      tcsetpgrp(0 , jobList[idx].pid);
-      kill(jobList[idx].pid , SIGCONT);
-      fg = jobList[idx].pid;
-      printf(jobList[idx].command);
-      waitpid(jobList[idx].pid  , &childStat, WUNTRACED);
-      tcsetpgrp(0 , getpid());
-      return 0;
-    }
-  }
-
-
+  int idx = 0;
+  while(jobList[idx].job_id != jobID){idx++;}
+  tcsetpgrp(0 , jobList[idx].pid);
+  kill(jobList[idx].pid , SIGCONT);
+  fg = jobList[idx].pid;
+  jobList[idx].job_id = 0;
+  jobCount--;
+  printf(jobList[idx].command);
+  waitpid(jobList[idx].pid  , &childStat, WUNTRACED);
+  tcsetpgrp(0 , getpid());
+  return 0;
+  
 }
+
 
 int childHandler(int sig){
   int childStat;    
@@ -70,25 +72,27 @@ int childHandler(int sig){
     {
         if(!WIFEXITED(childStat)){printf("\n");}
         if(WIFSIGNALED(childStat)){childExitCode = WTERMSIG(childStat) + 128;}
+        if(WIFCONTINUED(childStat)){return 0;}
         if(WIFSTOPPED(childStat)){
+          kill(pid , SIGTSTP);
           jobController bg = {pid , jobCount+1, NULL};
           bg.command = malloc( sizeof(char) * 1024);
           strcpy(bg.command,filename);
           bg.state = "Stopped";
-          jobList[jobCount] = bg;
+          jobList[findFreeJobID()] = bg;
           printf("[%d] %s %i\n" , bg.job_id , bg.state, bg.pid);
           jobCount++;
-          
           childExitCode = WSTOPSIG(childStat) + 128;
+          fg = !bg.pid;
+          return 0;
         }        
         if(pid == fg){return 0;}
         printf("\n");
-        for(int idx = 0; idx < jobCount; idx++){
-          if(jobList[idx].pid == pid){
-            printf("[%d]  Done %s\n" , jobList[idx].job_id, jobList[idx].command);
-            jobList[idx].job_id =  0;
-          }
-        }
+        int idx = 0;
+        while(jobList[idx].pid != pid){idx++;}
+        printf("[%d]  Done %s\n" , jobList[idx].job_id, jobList[idx].command);
+        jobList[idx].job_id =  0;
+    
         jobCount--;  
 
         }
@@ -247,6 +251,7 @@ int commands(char **inputLine , char **prevInputLine){ //taking in commands
       for(int idx = 0; idx < jobCount; idx++){
             printf("[%d]  %s %s \n" , jobList[idx].job_id, jobList[idx].state, jobList[idx].command);
           }
+      return 0;
 
     }
 
@@ -314,6 +319,7 @@ void shellMode(){
       else{
         status = commands(&inputLine , prevInputLine);
         strcpy(prevInputLine , inputLine);
+        for(int idx = 0; idx < jobCount; idx++){};
       }
       
   } while(quitStatus);
