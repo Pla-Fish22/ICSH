@@ -269,6 +269,13 @@ int commands(char **inputLine , char **prevInputLine){ //taking in commands
        //exit(1);
     }
 
+    if(!strcmp(temp , "cd")){
+      token = strtok(NULL , " ");
+       chdir(token);
+       return 0;
+       //exit(1);
+    }
+
     if(!strcmp(temp , "exit")){
      quitStatus = 0;
      printf("bye\n");
