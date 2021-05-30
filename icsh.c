@@ -25,19 +25,43 @@ typedef struct jobController{
 struct jobController jobList[100];
 
 
-// void toBackground(){
-//   pid_t = getpid();
-  
-//   jobController bg = {pid , jobCount+1, NULL};
-//   bg.command = malloc( sizeof(char) * 1024);
-//   strcpy(bg.command,filename);
-//   bg.state = "Running";
-//   jobList[jobCount] = bg;
-//   printf("[%d] %i\n" , bg.job_id , bg.pid);
-//   jobCount++;
+int findFreeJobID(){
+  int idx = 0;
+  while(jobList[idx].job_id != 0){
+    idx++;
+  }
+  return idx;
+
+}
+
+int toBackground(int jobID){
+  int childStat;
+  for(int idx = 0; idx < jobCount; idx++){
+    if(jobList[idx].job_id == jobID){
+      kill(jobList[idx].pid , SIGCONT);
+      return 0;
+    }
+  }
+
+}
 
 
-// }
+int toForeground(int jobID){
+  int childStat;
+  for(int idx = 0; idx < jobCount; idx++){
+    if(jobList[idx].job_id == jobID){
+      tcsetpgrp(0 , jobList[idx].pid);
+      kill(jobList[idx].pid , SIGCONT);
+      fg = jobList[idx].pid;
+      printf(jobList[idx].command);
+      waitpid(jobList[idx].pid  , &childStat, WUNTRACED);
+      tcsetpgrp(0 , getpid());
+      return 0;
+    }
+  }
+
+
+}
 
 int childHandler(int sig){
   int childStat;    
@@ -50,9 +74,9 @@ int childHandler(int sig){
           jobController bg = {pid , jobCount+1, NULL};
           bg.command = malloc( sizeof(char) * 1024);
           strcpy(bg.command,filename);
-          bg.state = "Running";
+          bg.state = "Stopped";
           jobList[jobCount] = bg;
-          printf("[%d] %i\n" , bg.job_id , bg.pid);
+          printf("[%d] %s %i\n" , bg.job_id , bg.state, bg.pid);
           jobCount++;
           
           childExitCode = WSTOPSIG(childStat) + 128;
@@ -62,6 +86,7 @@ int childHandler(int sig){
         for(int idx = 0; idx < jobCount; idx++){
           if(jobList[idx].pid == pid){
             printf("[%d]  Done %s\n" , jobList[idx].job_id, jobList[idx].command);
+            jobList[idx].job_id =  0;
           }
         }
         jobCount--;  
@@ -124,6 +149,7 @@ int buildInCommand(char parse[]){
           }
       }
 
+
       free(token);
 
       if(parse[strlen(filename)-1] == '\n'){parse[strlen(filename)-1] = '\0';}
@@ -170,11 +196,11 @@ int buildInCommand(char parse[]){
         tcsetpgrp(0, pid);
         if(bgCheck){
             waitpid(pid , &childStat, WNOHANG);
-            jobController bg = {pid , jobCount+1, NULL};
+            jobController bg = {pid , findFreeJobID() +  1, NULL};
             bg.command = malloc( sizeof(char) * 1024);
             strcpy(bg.command,filename);
             bg.state = "Running";
-            jobList[jobCount] = bg;
+            jobList[findFreeJobID()] = bg;
             printf("[%d] %i\n" , bg.job_id , bg.pid);
             jobCount++;
 
@@ -222,6 +248,20 @@ int commands(char **inputLine , char **prevInputLine){ //taking in commands
             printf("[%d]  %s %s \n" , jobList[idx].job_id, jobList[idx].state, jobList[idx].command);
           }
 
+    }
+
+    if(!strcmp(temp , "bg")){
+       token = strtok(NULL , "%");
+       toBackground(atoi(token));
+       return 0;
+       //exit(1);
+    }
+
+    if(!strcmp(temp , "fg")){
+       token = strtok(NULL , "%");
+       toForeground(atoi(token));
+       return 0;
+       //exit(1);
     }
 
     if(!strcmp(temp , "exit")){
