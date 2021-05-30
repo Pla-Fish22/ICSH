@@ -9,114 +9,185 @@
 #include <fcntl.h>
 
 #define LEN_INPUT 1024
+int quitStatus = 1;
+int childExitCode;
+pid_t fg;
+int jobCount = 0;
+char filename[LEN_INPUT];
 
 typedef struct jobController{
   pid_t pid;
   int job_id;
-  char command[LEN_INPUT];
-  char state[LEN_INPUT];
+  char *command;
+  char *state;
+} jobController;
 
-};  
+struct jobController jobList[100];
 
-int quitStatus = 1;
-int childExitCode;
-pid_t fg;
-int ccount;
-int jobID;
-pid_t bg;
 
+// void toBackground(){
+//   pid_t = getpid();
+  
+//   jobController bg = {pid , jobCount+1, NULL};
+//   bg.command = malloc( sizeof(char) * 1024);
+//   strcpy(bg.command,filename);
+//   bg.state = "Running";
+//   jobList[jobCount] = bg;
+//   printf("[%d] %i\n" , bg.job_id , bg.pid);
+//   jobCount++;
+
+
+// }
 
 int childHandler(int sig){
-  int child_status;    
-  pid_t pid;
-   while ((pid = waitpid(-1, &child_status, WNOHANG)) > 0)
+  int childStat;    
+  pid_t pid;  
+   while ((pid = waitpid(-1, &childStat, WNOHANG | WUNTRACED)) > 0)
     {
-        ccount--;
+        if(!WIFEXITED(childStat)){printf("\n");}
+        if(WIFSIGNALED(childStat)){childExitCode = WTERMSIG(childStat) + 128;}
+        if(WIFSTOPPED(childStat)){
+          jobController bg = {pid , jobCount+1, NULL};
+          bg.command = malloc( sizeof(char) * 1024);
+          strcpy(bg.command,filename);
+          bg.state = "Running";
+          jobList[jobCount] = bg;
+          printf("[%d] %i\n" , bg.job_id , bg.pid);
+          jobCount++;
+          
+          childExitCode = WSTOPSIG(childStat) + 128;
+        }        
         if(pid == fg){return 0;}
-        printf("Received signal %d from process %d\n",
-               sig, pid);
-    }
+        printf("\n");
+        for(int idx = 0; idx < jobCount; idx++){
+          if(jobList[idx].pid == pid){
+            printf("[%d]  Done %s\n" , jobList[idx].job_id, jobList[idx].command);
+          }
+        }
+        jobCount--;  
+
+        }
+        // printf("[%d] Done %s ",
+        //        );
 }
 
 
-int buildInCommand(char cmd[], char *argv[], int max){
-    int dup1Check = 0;
-    int dup2Check = 0; 
-    int bgCheck = 0;
-    char file[1024];
+int buildInCommand(char parse[]){
+      strcpy(filename , parse);
+      char *arg[1024];
+      char *token = strtok(parse , " ");
+      int idx = 0;
+      int pointers;
+      arg[0] = NULL; arg[1] = NULL; arg[2] = NULL;
 
-    int idx;
-    if(cmd[strlen(cmd) - 1] == '\n'){
-      cmd[strlen(cmd) - 1] = '\0';
-    }
-    argv[0] = cmd;
-    pid_t pid = fork();
-    struct sigaction sig;
-    printf(cmd);
-    for(idx = 0; idx < max; idx++){
-          printf(argv[idx]);
-          // if(strchr(argv[idx] , '>')){
-          //   argv[idx] = NULL;
-          //   strcpy(file , argv[idx+1]);
-          //   argv[idx+1] = NULL;
-          //   dup1Check = 1;
-          //   break;
-          // }
+      
+
+
+      token = strtok(NULL , " ");
+      while(token != NULL){
+        if(!strcmp(token , "\n")){arg[idx] = NULL;}
+        else{arg[idx] = token;}
+        token = strtok(NULL , " ");
+        idx++;
+        pointers = idx;
       }
 
-      // printf("%d" , dup1Check);
-      // printf(file);
+      char toFile[LEN_INPUT];//extracting file name
+      int dupCheck = 0; //check if we have to duplicate/redirect // 1 for > 2 for <
+      int bgCheck = 0;
 
+      for(idx = 0; idx < pointers; idx++){  //finding dup | bg checker 
+        if(arg[idx] == NULL ){break;}
+          if(strchr(arg[idx] , '>')){
+            arg[idx] = NULL;
+            strcpy(toFile , arg[idx+1]);
+            toFile[strlen(toFile) - 1] = '\0';
+            arg[idx+1] = NULL;
+            dupCheck = 1;
+            break;
+          }
 
+          if(strchr(arg[idx] , '<')){
+            arg[idx] = NULL;
+            strcpy(toFile , arg[idx+1]);
+            toFile[strlen(toFile) - 1] = '\0';
+            arg[idx+1] = NULL;
+            dupCheck = 2;
+            break;
+          }
 
-    if(pid < 0){printf("Error.\n");exit(EXIT_FAILURE);}
-
-    if(pid == 0){
-      sig.sa_handler = SIG_DFL;
-      sigaction(SIGINT, &sig, NULL);
-      sigaction(SIGTSTP, &sig, NULL);
-      pid = getpid();
-      setpgid(pid, pid);
-      if(!bgCheck){
-        tcsetpgrp(0, pid);
-        fg = pid;
-        printf("%d" , pid);
+        if (strchr(arg[idx] , '&')){
+            arg[idx] = NULL;
+            arg[idx+1] = NULL;
+            bgCheck = 1;
+            break;
+          }
       }
-      else{bg = pid;}
-      jobID = ccount;
-      if(dup1Check){
-        int to = open(file, O_WRONLY | O_CREAT | O_TRUNC , 0777);
-        if(file < 0){perror("failed to find file"); exit(EXIT_FAILURE);}
-        int from = dup2(to , STDOUT_FILENO);
-        close(file);
-      }
-      // if(dup2Check){
-      //   int file = open(toFile, O_RDONLY);
-      //   if(file < 0){perror("failed to find file"); exit(EXIT_FAILURE);}
-      //   int from = dup2(file, STDIN_FILENO);
-      //   close(file);
-      // }
-      execvp(cmd , argv);
-      printf("bad command\n");
-      exit(0);
-    }
 
-    else{
-        int childStat;  
+      free(token);
+
+      if(parse[strlen(filename)-1] == '\n'){parse[strlen(filename)-1] = '\0';}
+
+      pid_t pid = fork();
+
+      struct sigaction sig;
+
+
+      if(pid < 0){printf("Error.\n");exit(EXIT_FAILURE);}
+
+      if(pid == 0){
+          sig.sa_handler = SIG_DFL;
+          sigaction(SIGINT, &sig, NULL);
+          sigaction(SIGTSTP, &sig, NULL);
+          pid = getpid();
+          setpgid(pid, pid);
+          if(!bgCheck){
+            tcsetpgrp(0, pid);
+            fg = pid;
+
+          }
+          if(dupCheck == 1){
+            int file = open(toFile, O_WRONLY | O_CREAT | O_TRUNC , 0777);
+            if(file < 0){perror("failed to find file"); exit(EXIT_FAILURE);}
+            int from = dup2(file , STDOUT_FILENO);
+            close(file);
+          }
+          if(dupCheck == 2){
+            int file = open(toFile, O_RDONLY);
+            if(file < 0){perror("failed to find file"); exit(EXIT_FAILURE);}
+            int from = dup2(file, STDIN_FILENO);
+            close(file);
+          }
+
+          execlp(parse, parse, arg[0], arg[1], arg[2], arg[3], arg[4], NULL);
+          printf("bad command\n");
+          exit(0);
+          }
+
+      else{
+        int childStat;
         setpgid(pid, pid);
+        tcsetpgrp(0, pid);
         if(bgCheck){
-            ccount++;
-            bg = pid;
+            waitpid(pid , &childStat, WNOHANG);
+            jobController bg = {pid , jobCount+1, NULL};
+            bg.command = malloc( sizeof(char) * 1024);
+            strcpy(bg.command,filename);
+            bg.state = "Running";
+            jobList[jobCount] = bg;
+            printf("[%d] %i\n" , bg.job_id , bg.pid);
+            jobCount++;
+
           }
           else{
-             tcsetpgrp(0, pid);
              fg = pid;
              waitpid(pid , &childStat, WUNTRACED);
-             tcsetpgrp(0, getpid());
-             if(!WIFEXITED(childStat)){printf("\n");}
-             if(WIFSIGNALED(childStat)){childExitCode = WTERMSIG(childStat) + 128;}
-             if(WIFSTOPPED(childStat)){childExitCode = WSTOPSIG(childStat) + 128;}
           }
+        tcsetpgrp(0, getpid());
+        if(!WIFEXITED(childStat)){printf("\n");}
+        if(WIFSIGNALED(childStat)){childExitCode = WTERMSIG(childStat) + 128;}
+        if(WIFSTOPPED(childStat)){childExitCode = WSTOPSIG(childStat) + 128;}
+        arg[0] = NULL; arg[1] = NULL; arg[2] = NULL;
         return 0;
       }
     }
@@ -146,6 +217,13 @@ int commands(char **inputLine , char **prevInputLine){ //taking in commands
       return 0;
     }
 
+    if(!strcmp(temp , "jobs")){
+      for(int idx = 0; idx < jobCount; idx++){
+            printf("[%d]  %s %s \n" , jobList[idx].job_id, jobList[idx].state, jobList[idx].command);
+          }
+
+    }
+
     if(!strcmp(temp , "exit")){
      quitStatus = 0;
      printf("bye\n");
@@ -156,23 +234,7 @@ int commands(char **inputLine , char **prevInputLine){ //taking in commands
      return commands(&prevInputLine, &inputLine);
     }
     else{
-      char *argv[10];
-      char *token = strtok(temp2, " ");
-      int idx = 0;
-      int max;
-      idx++;
-      token = strtok(NULL , " ");
-      while(token != NULL){
-        if(token[strlen(token) - 1] == '\n'){token[strlen(token) - 1] = '\0';}
-        argv[idx] = token;
-        token = strtok(NULL , " ");
-        idx++;
-        max = idx;
-      }
-
-      int toRet = buildInCommand(temp2, argv , max);
-      return toRet;
-
+      return buildInCommand(temp2);
     }
         
 }
@@ -184,6 +246,8 @@ void  getLine(char **inputLine){ //reading input
 }
 
 void shellMode(){
+
+    
 
     struct sigaction sig, sigchld;
 
@@ -247,7 +311,3 @@ void main(int argc, char* argv[])
     }
     shellMode();
 }
-
-
-
- 
