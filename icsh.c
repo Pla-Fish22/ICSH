@@ -38,11 +38,8 @@ int toBackground(int jobID){
   int childStat;
   int idx = 0;
   while(jobList[idx].job_id != jobID){idx++;}
-  tcsetpgrp(0 , jobList[idx].pid);
-  kill(jobList[idx].pid , SIGCONT);
   jobList[idx].state = "Running";
-  waitpid(jobList[idx].pid  , &childStat, WNOHANG);
-  tcsetpgrp(0 , getpid());
+  kill(jobList[idx].pid , SIGCONT);
   return 0;
 
 }
@@ -74,16 +71,16 @@ int childHandler(int sig){
         if(WIFSIGNALED(childStat)){childExitCode = WTERMSIG(childStat) + 128;}
         if(WIFCONTINUED(childStat)){return 0;}
         if(WIFSTOPPED(childStat)){
-          kill(pid , SIGTSTP);
-          jobController bg = {pid , jobCount+1, NULL};
-          bg.command = malloc( sizeof(char) * 1024);
-          strcpy(bg.command,filename);
-          bg.state = "Stopped";
-          jobList[findFreeJobID()] = bg;
-          printf("[%d] %s %i\n" , bg.job_id , bg.state, bg.pid);
-          jobCount++;
+          // kill(pid , SIGTSTP);
+          // jobController bg = {pid , jobCount+1, NULL};
+          // bg.command = malloc( sizeof(char) * 1024);
+          // strcpy(bg.command,filename);
+          // bg.state = "Stopped";
+          // jobList[findFreeJobID()] = bg;
+          // printf("[%d] %s %i\n" , bg.job_id , bg.state, bg.pid);
+          // jobCount++;
           childExitCode = WSTOPSIG(childStat) + 128;
-          fg = !bg.pid;
+          //fg = !bg.pid;
           return 0;
         }        
         if(pid == fg){return 0;}
@@ -216,7 +213,15 @@ int buildInCommand(char parse[]){
         tcsetpgrp(0, getpid());
         if(!WIFEXITED(childStat)){printf("\n");}
         if(WIFSIGNALED(childStat)){childExitCode = WTERMSIG(childStat) + 128;}
-        if(WIFSTOPPED(childStat)){childExitCode = WSTOPSIG(childStat) + 128;}
+        if(WIFSTOPPED(childStat)){
+          jobController bg = {pid , jobCount+1, NULL};
+          bg.command = malloc( sizeof(char) * 1024);
+          strcpy(bg.command,filename);
+          bg.state = "Stopped";
+          jobList[findFreeJobID()] = bg;
+          printf("[%d] %s %i\n" , bg.job_id , bg.state, bg.pid);
+          jobCount++;
+          childExitCode = WSTOPSIG(childStat) + 128;}
         arg[0] = NULL; arg[1] = NULL; arg[2] = NULL;
         return 0;
       }
@@ -231,6 +236,9 @@ int commands(char **inputLine , char **prevInputLine){ //taking in commands
     strcpy(temp , *inputLine);
     strcpy(temp2 , *inputLine);
 
+    if(!strcmp(*inputLine , "")){
+      return 0;
+    }
     if(temp[strlen(temp) - 1] == '\n'){temp[strlen(temp) - 1 ] = '\0';}
 
     if(!strcmp(temp , "echo\n") || !strcmp(temp , "echo ")){printf("\n"); return 0;}
@@ -293,13 +301,12 @@ int commands(char **inputLine , char **prevInputLine){ //taking in commands
 
 void  getLine(char **inputLine){ //reading input 
     char temp[LEN_INPUT];
-    fgets(temp , LEN_INPUT, stdin);
-    strcpy(*inputLine , temp);
+    if(fgets(temp , LEN_INPUT, stdin) != NULL){
+      strcpy(*inputLine , temp);
+    }
 }
 
 void shellMode(){
-
-    
 
     struct sigaction sig, sigchld;
 
@@ -328,6 +335,7 @@ void shellMode(){
         strcpy(prevInputLine , inputLine);
         for(int idx = 0; idx < jobCount; idx++){};
       }
+      strcpy(inputLine , "");
       
   } while(quitStatus);
   free(inputLine);
